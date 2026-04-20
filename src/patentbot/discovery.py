@@ -1,46 +1,64 @@
 """
-Patent discovery - scrape Google Patents search
+Patent discovery - snowball via citations + seed list
 """
 import asyncio
-import re
-from urllib.request import Request, urlopen
-from urllib.parse import quote
-from bs4 import BeautifulSoup
+from .storage import get_patents
 
-async def discover_patents(company: str, limit: int = 1000) -> list[str]:
-    """Search Google Patents for company patents"""
-    print(f"Searching Google Patents for: {company}")
+# Pre-defined seed patents for Medtronic (cardiac/medical device related)
+# These are well-known Medtronic patent families
+MEDTRONIC_SEEDS = [
+    "US3955174A",   # Pacemaker
+    "US4475551A",   # Cardiac stimulator  
+    "US5113869A",   # Implantable pacemaker
+    "US5314453A",   # Portable stimulator
+    "US5443487A",   # Cardiac depolarization
+    "US5741314A",   # Medical lead
+    "US5741315A",   # Electrode
+    "US6152955A",  # Cardiac lead
+    "US6317611B1", # Cardiac monitoring
+    "US6408214B1", # DFBM pacemaker
+]
+
+async def discover_patents(company: str, known_patents: list[str] | None = None) -> list[str]:
+    """
+    Discover patents using snowball method from seed patents.
+    Falls back to predefined seeds if no known_patents provided.
+    """
+    from .fetch import fetch_patent_data
     
-    # Google Patents search URL
-    query = quote(f"assignee:{company}")
-    url = f"https://patents.google.com/?q={query}&num={limit}"
+    seed_patents = known_patents or MEDTRONIC_SEEDS
     
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    req = Request(url, headers=headers)
+    discovered = set(seed_patents)
+    to_fetch = list(seed_patents)
+    fetched = set()
     
-    try:
-        webpage = urlopen(req, timeout=30).read()
-        soup = BeautifulSoup(webpage, features="lxml")
+    print(f"Starting discovery with {len(seed_patents)} seeds...")
+    
+    max_iterations = 3
+    
+    while to_fetch and len(fetched) < max_iterations * 10:
+        pn = to_fetch.pop(0)
+        if pn in fetched:
+            continue
+        fetched.add(pn)
         
-        # Find patent numbers in search results
-        patent_numbers = []
-        
-        # Look for patent-result-card or similar
-        for link in soup.find_all('a', href=True):
-            href = link.get('href', '')
-            # Match patterns like /patent/US7742806B2
-            match = re.search(r'/patent/([A-Z]{2}\d+[A-Z]\d*[A-Z]?)', href)
-            if match and match.group(1) not in patent_numbers:
-                patent_numbers.append(match.group(1))
-        
-        print(f"Found {len(patent_numbers)} patents for {company}")
-        return patent_numbers[:limit]
-        
-    except Exception as e:
-        print(f"Error searching: {e}")
-        return []
+        try:
+            data = fetch_patent_data(pn)
+            backward = data.get("backward_citations", [])[:3]
+            forward = data.get("forward_citations", [])[:3]
+            
+            for cited in backward + forward:
+                if cited and cited not in discovered:
+                    discovered.add(cited)
+                    to_fetch.append(cited)
+                    
+        except Exception as e:
+            print(f"Error {pn}: {e}")
+    
+    print(f"Discovered {len(discovered)} patents")
+    return list(discovered)
 
 if __name__ == "__main__":
     import asyncio
     patents = asyncio.run(discover_patents("Medtronic"))
-    print(f"Sample: {patents[:5]}")
+    print(patents[:10])
