@@ -21,6 +21,8 @@ def init_database() -> sqlite3.Connection:
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS patents (
             patent_number TEXT PRIMARY KEY,
+            title TEXT,
+            abstract TEXT,
             assignee TEXT,
             inventors TEXT,
             filing_date DATE,
@@ -64,11 +66,13 @@ def save_patent(patent_data: dict[str, Any]) -> None:
     
     cursor.execute("""
         INSERT OR REPLACE INTO patents (
-            patent_number, assignee, inventors, filing_date, grant_date,
+            patent_number, title, abstract, assignee, inventors, filing_date, grant_date,
             forward_citations, backward_citations, sources, fetched_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         patent_data.get("patent_number"),
+        patent_data.get("title"),
+        patent_data.get("abstract"),
         patent_data.get("assignee"),
         json.dumps(patent_data.get("inventors", [])),
         patent_data.get("filing_date"),

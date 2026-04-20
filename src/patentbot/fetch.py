@@ -3,8 +3,10 @@ Patent fetch module - get details from Google Patents
 """
 import asyncio
 import json
+import re
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor
+from bs4 import BeautifulSoup
 
 def fetch_patent_data(patent_number: str) -> dict[str, Any]:
     """Fetch patent details from Google Patents"""
@@ -17,6 +19,27 @@ def fetch_patent_data(patent_number: str) -> dict[str, Any]:
         return {"patent_number": patent_number, "error": status}
     
     raw = scraper.get_scraped_data(soup, patent_number, url)
+    
+    # Extract title from page title or heading
+    title = None
+    if soup:
+        # Try meta tag first
+        meta = soup.find('meta', {'name': 'description'})
+        if meta and meta.get('content'):
+            title = meta['content'].split('.')[0] if '.' in meta['content'] else meta['content']
+        # Try heading
+        if not title:
+            h1 = soup.find('h1')
+            if h1:
+                title = h1.get_text(strip=True)
+    
+    # Extract abstract from various sources
+    abstract = raw.get("abstract_text", "") or ""
+    if not abstract and soup:
+        # Try to find abstract section
+        abstract_section = soup.find('section', {'itemprop': 'abstract'})
+        if abstract_section:
+            abstract = abstract_section.get_text(strip=True)
     
     def parse_json_field(val):
         if isinstance(val, str):
@@ -41,6 +64,8 @@ def fetch_patent_data(patent_number: str) -> dict[str, Any]:
     
     return {
         "patent_number": patent_number,
+        "title": title,
+        "abstract": abstract[:2000] if abstract else None,
         "assignee": assignee_orig if assignee_orig else None,
         "inventors": inventors,
         "grant_date": raw.get("grant_date"),
