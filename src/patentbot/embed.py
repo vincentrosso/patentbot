@@ -4,11 +4,11 @@ Embedding module - generate vector embeddings using Voyage AI
 import os
 import json
 import numpy as np
-from typing import Dict, Any, List
+from typing import Any
 import voyageai
 
 async def embed_patent(
-    patent_data: Dict[str, Any],
+    patent_data: dict[str, Any],
     client: voyageai.Client
 ) -> np.ndarray:
     """Generate embedding for a single patent"""
@@ -37,7 +37,7 @@ async def embed_patent(
         return np.zeros(1024, dtype=np.float32)
 
 async def embed_patents(
-    patent_data_list: List[Dict[str, Any]]
+    patent_data_list: list[dict[str, Any]]
 ) -> List[np.ndarray]:
     """Generate embeddings for multiple patents"""
     api_key = os.getenv("VOYAGE_API_KEY")

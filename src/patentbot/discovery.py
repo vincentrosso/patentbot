@@ -1,70 +1,39 @@
 """
 Patent discovery module - find patents by company
-"""
-import os
-import asyncio
-import aiohttp
-from typing import List
 
-async def discover_patents(company: str) -> List[str]:
-    """Discover patents for a given company using USPTO PatentsView API"""
-    api_key = os.getenv("USPTO_API_KEY")
-    if not api_key:
-        raise ValueError("USPTO_API_KEY environment variable not set")
+NOTE: The PatentsView API was discontinued in May 2025. 
+We need to use alternative methods:
+1. USPTO Open Data Portal (data.uspto.gov) - new APIs coming
+2. Google Patents scraping - requires search functionality
+3. Bulk data downloads from PatentsView
+
+For now, this module provides a placeholder that can be extended
+once a reliable free API is available.
+"""
+import asyncio
+
+async def discover_patents(company: str) -> list[str]:
+    """
+    Discover patents for a given company.
     
-    # USPTO PatentsView API endpoint
-    url = "https://search.patentsview.org/api/v1/patent"
+    Currently returns empty list - needs implementation with new API.
+    Options:
+    - USPTO Open Data Portal (data.uspto.gov) - new patent search API
+    - Google Patents web scraping
+    - PatentsView bulk downloads (weekly CSV exports)
+    """
+    print(f"Discovery not implemented - PatentsView API discontinued")
+    print(f"To implement, choose from:")
+    print(f"  1. USPTO Open Data Portal (data.uspto.gov)")
+    print(f"  2. Google Patents scraping")
+    print(f"  3. PatentsView bulk data downloads")
     
-    # Query for patents assigned to the company
-    query = {
-        "q": {"assignee": company},
-        "f": ["patent_number", "title", "assignee", "filing_date", "grant_date"],
-        "o": {"per_page": 1000}  # Maximum per page
-    }
-    
-    headers = {
-        "Content-Type": "application/json",
-        "X-API-KEY": api_key
-    }
-    
-    patent_numbers = []
-    page = 1
-    
-    async with aiohttp.ClientSession() as session:
-        while True:
-            query["o"]["page"] = page
-            
-            async with session.post(url, json=query, headers=headers) as response:
-                if response.status != 200:
-                    print(f"Error: HTTP {response.status}")
-                    break
-                    
-                data = await response.json()
-                patents = data.get("patents", [])
-                
-                if not patents:
-                    break
-                    
-                for patent in patents:
-                    patent_numbers.append(patent["patent_number"])
-                
-                print(f"Page {page}: Found {len(patents)} patents")
-                
-                # Check if we have more pages
-                if len(patents) < query["o"]["per_page"]:
-                    break
-                    
-                page += 1
-                
-                # Respect rate limiting
-                await asyncio.sleep(60 / 45)  # 45 requests per minute
-    
-    print(f"Total patents discovered: {len(patent_numbers)}")
-    return patent_numbers
+    # Placeholder - can manually add patent numbers to test
+    return []
 
 if __name__ == "__main__":
-    async def test_discovery():
+    async def test():
         patents = await discover_patents("Medtronic")
-        print(f"Sample patents: {patents[:5]}")
+        print(f"Patents: {patents}")
     
-    asyncio.run(test_discovery())
+    asyncio.run(test())

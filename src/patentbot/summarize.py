@@ -4,7 +4,7 @@ Summarization module - generate patent summaries using Claude
 import os
 import json
 import asyncio
-from typing import Dict, Any, List
+from typing import Any
 import anthropic
 
 SYSTEM_PROMPT = """You are a patent analysis expert. Summarize patents concisely and extract key technical details.
@@ -64,8 +64,8 @@ Claims: {first_claims}"""
         return {}
 
 async def summarize_patents(
-    patent_data_list: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    patent_data_list: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Summarize multiple patents with rate limiting"""
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:

@@ -5,7 +5,7 @@ import sqlite3
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 DB_PATH = Path("patents.db")
 
@@ -66,7 +66,7 @@ def init_database() -> sqlite3.Connection:
     conn.commit()
     return conn
 
-def save_patent(patent_data: Dict[str, Any]) -> None:
+def save_patent(patent_data: dict[str, Any]) -> None:
     """Save or update a patent record"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -92,7 +92,7 @@ def save_patent(patent_data: Dict[str, Any]) -> None:
     
     conn.commit()
 
-def save_citations(citations: List[Dict[str, Any]) -> None:
+def save_citations(citations: list[dict[str, Any]]) -> None:
     """Save citation records"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -111,7 +111,7 @@ def save_citations(citations: List[Dict[str, Any]) -> None:
     
     conn.commit()
 
-def get_patents(assignee: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+def get_patents(assignee: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
     """Get patent records"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -129,7 +129,7 @@ def get_patents(assignee: Optional[str] = None, limit: Optional[int] = None) -> 
     cursor.execute(query, params)
     return [dict(row) for row in cursor.fetchall()]
 
-def get_patent(patent_number: str) -> Optional[Dict[str, Any]]:
+def get_patent(patent_number: str) -> dict[str, Any] | None:
     """Get a single patent"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -139,7 +139,7 @@ def get_patent(patent_number: str) -> Optional[Dict[str, Any]]:
     
     return dict(row) if row else None
 
-def save_company(name: str, aliases: List[str]) -> None:
+def save_company(name: str, aliases: list[str]) -> None:
     """Save or update company record"""
     conn = get_connection()
     cursor = conn.cursor()

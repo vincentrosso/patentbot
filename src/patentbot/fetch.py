@@ -1,115 +1,78 @@
 """
-Patent fetch module - get details from USPTO and Google Patents
+Patent fetch module - get details from Google Patents
 """
-import os
 import asyncio
-import aiohttp
-from typing import List, Dict, Any, Tuple
+import json
+from typing import Any
 from concurrent.futures import ThreadPoolExecutor
 
-async def fetch_uspto_details(patent_number: str, session: aiohttp.ClientSession) -> Dict[str, Any]:
-    """Fetch patent details from USPTO PatentsView API"""
-    api_key = os.getenv("USPTO_API_KEY")
-    if not api_key:
-        raise ValueError("USPTO_API_KEY not set")
-
-    url = "https://search.patentsview.org/api/v1/patent"
+def fetch_patent_data(patent_number: str) -> dict[str, Any]:
+    """Fetch patent details from Google Patents"""
+    from google_patent_scraper import scraper_class
     
-    query = {
-        "q": {"patent_number": patent_number},
-        "f": [
-            "patent_number", "title", "assignee", "inventor",
-            "filing_date", "grant_date", "abstract",
-            "claims", "cpc_code"
-        ]
-    }
+    scraper = scraper_class()
+    status, soup, url = scraper.request_single_patent(patent_number)
     
-    headers = {
-        "Content-Type": "application/json",
-        "X-API-KEY": api_key
+    if status != 'Success':
+        return {"patent_number": patent_number, "error": status}
+    
+    raw = scraper.get_scraped_data(soup, patent_number, url)
+    
+    def parse_json_field(val):
+        if isinstance(val, str):
+            try:
+                return json.loads(val)
+            except:
+                return val
+        return val
+    
+    inventors = parse_json_field(raw.get("inventor_name", []))
+    if isinstance(inventors, list):
+        inventors = [i.get("inventor_name") for i in inventors if isinstance(i, dict)]
+    
+    assignee_orig = parse_json_field(raw.get("assignee_name_orig", []))
+    if isinstance(assignee_orig, list) and assignee_orig:
+        assignee_orig = assignee_orig[0].get("assignee_name")
+    
+    forward_cites = parse_json_field(raw.get("forward_cite_no_family", []))
+    forward_family = parse_json_field(raw.get("forward_cite_yes_family", []))
+    backward_cites = parse_json_field(raw.get("backward_cite_no_family", []))
+    backward_family = parse_json_field(raw.get("backward_cite_yes_family", []))
+    
+    return {
+        "patent_number": patent_number,
+        "assignee": assignee_orig if assignee_orig else None,
+        "inventors": inventors,
+        "grant_date": raw.get("grant_date"),
+        "filing_date": raw.get("filing_date"),
+        "priority_date": raw.get("priority_date"),
+        "pub_date": raw.get("pub_date"),
+        "forward_citations": [c.get("patent_number") for c in forward_cites] if isinstance(forward_cites, list) else [],
+        "forward_family_citations": [c.get("patent_number") for c in forward_family] if isinstance(forward_family, list) else [],
+        "backward_citations": [c.get("patent_number") for c in backward_cites] if isinstance(backward_cites, list) else [],
+        "backward_family_citations": [c.get("patent_number") for c in backward_family] if isinstance(backward_family, list) else [],
+        "sources": ["google"]
     }
 
-    try:
-        async with session.post(url, json=query, headers=headers) as response:
-            if response.status != 200:
-                return {}
-            
-            data = await response.json()
-            patents = data.get("patents", [])
-            
-            if not patents:
-                return {}
-            
-            patent = patents[0]
-            
-            return {
-                "patent_number": patent.get("patent_number"),
-                "title": patent.get("title"),
-                "assignee": patent.get("assignee", [{}])[0].get("assignee_organization") if patent.get("assignee") else None,
-                "inventors": [inv.get("inventor_name") for inv in patent.get("inventor", [])],
-                "filing_date": patent.get("filing_date"),
-                "grant_date": patent.get("grant_date"),
-                "abstract": patent.get("abstract"),
-                "claims": patent.get("claims", [{}])[0].get("claim_text") if patent.get("claims") else None,
-                "cpc_codes": [cpc.get("cpc_code") for cpc in patent.get("cpc_subgroup", [])],
-                "source": "uspto"
-            }
-    except Exception as e:
-        print(f"Error fetching USPTO details for {patent_number}: {e}")
-        return {}
-
-async def fetch_google_details(patent_number: str) -> Dict[str, Any]:
-    """Fetch patent details from Google Patents using scraper"""
-    try:
-        from google_patent_scraper import scraper_helper, patents_scraper
-        
-        scraper = patents_scraper()
-        result = scraper.single_patent_scraper(patent_number)
-        
-        if result.get("error"):
-            return {}
-        
-        return {
-            "forward_citations": result.get("forward_citation", []),
-            "backward_citations": result.get("backward_citation", []),
-            "family_citations": result.get("family_citation", []),
-            "source": "google"
-        }
-    except Exception as e:
-        print(f"Error fetching Google details for {patent_number}: {e}")
-        return {}
-
-async def fetch_patent_details(patent_numbers: List[str]) -> List[Dict[str, Any]]:
+async def fetch_patent_details(patent_numbers: list[str]) -> list[dict[str, Any]]:
     """Fetch details for multiple patents concurrently"""
+    loop = asyncio.get_event_loop()
     results = []
-    semaphore = asyncio.Semaphore(10)  # Limit concurrent requests
     
-    async def fetch_with_semaphore(patent_number: str) -> Tuple[str, Dict[str, Any], Dict[str, Any]]:
-        async with semaphore:
-            async with aiohttp.ClientSession() as session:
-                # Run USPTO and Google fetches concurrently
-                uspto_task = fetch_uspto_details(patent_number, session)
-                google_task = fetch_google_details(patent_number)
-                
-                uspto_data, google_data = await asyncio.gather(uspto_task, google_task)
-                
-                # Merge results
-                merged = {**uspto_data}
-                if google_data:
-                    merged["forward_citations"] = google_data.get("forward_citations", [])
-                    merged["backward_citations"] = google_data.get("backward_citations", [])
-                    merged["family_citations"] = google_data.get("family_citations", [])
-                    merged["sources"] = [s for s in ["uspto" if uspto_data else None, "google" if google_data else None] if s]
-                
-                return patent_number, uspto_data, google_data
-    
-    tasks = [fetch_with_semaphore(pn) for pn in patent_numbers]
-    
-    for task in asyncio.as_completed(tasks):
-        pn, uspto, google = await task
-        results.append({"patent_number": pn, "uspto": uspto, "google": google})
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [
+            loop.run_in_executor(executor, fetch_patent_data, pn)
+            for pn in patent_numbers
+        ]
         
+        for future in asyncio.as_completed(futures):
+            result = await future
+            results.append(result)
+            print(f"Fetched: {result.get('patent_number')}")
+    
     return results
 
 if __name__ == "__main__":
-    asyncio.run(fetch_patent_details(["US7742806B2"]))
+    import asyncio
+    result = fetch_patent_data("US7742806B2")
+    print(f"Sample: {result}")

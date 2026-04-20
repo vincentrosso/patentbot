@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--fetch-only", action="store_true", help="Only fetch patent details")
     parser.add_argument("--summarize-only", action="store_true", help="Only summarize patents")
     parser.add_argument("--analyze-only", action="store_true", help="Only run analysis")
+    parser.add_argument("--patents", nargs="+", help="Manual list of patent numbers to process")
     
     args = parser.parse_args()
     

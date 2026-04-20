@@ -3,7 +3,7 @@ Analysis module - clustering and gap analysis for patent portfolios
 """
 import json
 import numpy as np
-from typing import Dict, Any, List, Tuple
+from typing import Any
 from collections import Counter, defaultdict
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
@@ -11,7 +11,7 @@ from sklearn.metrics import silhouette_score
 def cluster_patents(
     embeddings: np.ndarray,
     n_clusters: int = 10
-) -> Tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float]:
     """Cluster patents using KMeans"""
     # Determine optimal clusters if not specified
     if n_clusters is None:
@@ -31,7 +31,7 @@ def cluster_patents(
     
     return labels, score
 
-def analyze_cpc_distribution(patents: List[Dict[str, Any]]) -> Dict[str, Any]:
+def analyze_cpc_distribution(patents: list[dict[str, Any]]) -> Dict[str, Any]:
     """Analyze CPC code distribution"""
     cpc_counter = Counter()
     
@@ -53,9 +53,9 @@ def analyze_cpc_distribution(patents: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 def find_white_space_gaps(
-    company_patents: List[Dict[str, Any]],
-    competitor_patents: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    company_patents: list[dict[str, Any]],
+    competitor_patents: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Find white-space gaps - CPC classes in competitor but not in company"""
     company_cpcs = set()
     competitor_cpcs = set()
@@ -81,7 +81,7 @@ def find_white_space_gaps(
     return [{"cpc_class": cpc, "opportunity": "potential_gap"} for cpc in gaps]
 
 def generate_cluster_report(
-    patents: List[Dict[str, Any]],
+    patents: list[dict[str, Any]],
     labels: np.ndarray,
     cpc_analysis: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -124,7 +124,7 @@ def generate_cluster_report(
     
     return cluster_report
 
-def analyze_citations(patents: List[Dict[str, Any]]) -> Dict[str, Any]:
+def analyze_citations(patents: list[dict[str, Any]]) -> Dict[str, Any]:
     """Analyze citation patterns"""
     forward_cites = []
     backward_cites = []
