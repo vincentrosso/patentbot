@@ -1,11 +1,9 @@
 google_patent_scraper>=0.1.0
 requests>=2.32.0
 aiohttp>=3.9.0
-sqlite-utils>=3.35.2
 numpy>=1.26.0
 pandas>=2.2.0
 scikit-learn>=1.4.0
-anthropic>=0.25.0
-voyageai>=0.2.0
+openrouter>=0.1.0
 tqdm>=4.66.0
 python-dotenv>=1.0.0
